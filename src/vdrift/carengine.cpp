@@ -63,9 +63,9 @@ void CARENGINE::ComputeForces()
 	
 	//  engine drive torque
 	Dbl friction_factor = 1.0; // used to make sure we allow friction to work if we're out of gas or above the rev limit
-	Dbl rev_limit = rpm_max+500; // rpm_limit;
+	Dbl rev_limit = rpm_max; // clamp exactly at the .car file's rpm-limit value
 	if (rev_limit_exceeded)
-		rev_limit -= 400.0;  ///par
+		rev_limit -= 400.0;  ///par hysteresis: re-enable combustion 400 RPM below limit
 	
 	if (GetRPM() < rev_limit)
 		rev_limit_exceeded = false;
