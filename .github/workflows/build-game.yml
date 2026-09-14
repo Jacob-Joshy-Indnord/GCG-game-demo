@@ -120,8 +120,8 @@ jobs:
         run: conan cache clean "*" -sbd
         shell: cmd
 
-  build-clang:
-    name: macOS build
+  build-macos:
+    name: macOS build (Metal)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -137,6 +137,7 @@ jobs:
       - name: Install dependencies
         run: |
           curl "https://raw.githubusercontent.com/AnotherFoxGuy/ci-scripts/main/install-conan.sh" | sudo bash
+          brew install ninja
         shell: bash
 
       - name: Configure
