@@ -12,11 +12,12 @@ enum CamTypes
 	CAM_Arena,		//  2 Arena  - free pos & rot, fly
 	CAM_Car,		//  3 Car    - car pos & rot, full
 	CAM_ExtAng,		//  4 Extended, angles - car rotY & pos, smooth, const distance
+	CAM_Helicopter,	//  5 Helicopter - elevated overhead, replay only, smooth follow
 	CAM_ALL
 };
 
-const char CAM_Str[CAM_ALL][10] =
-	{"Follow", "Free", "Arena", "Car", "ExtAng" };
+const char CAM_Str[CAM_ALL][12] =
+	{"Follow", "Free", "Arena", "Car", "ExtAng", "Helicopter" };
 
 
 class CameraView
@@ -84,8 +85,12 @@ public:
 	Ogre::String sName;  bool updName = 0;
 
 	//  info text formats
-	Ogre::String sFmt_Follow, sFmt_Free, sFmt_ExtAng, sFmt_Arena, sFmt_Car;
+	Ogre::String sFmt_Follow, sFmt_Free, sFmt_ExtAng, sFmt_Arena, sFmt_Car, sFmt_Helicopter;
 	void updFmtTxt();
+
+	//  🚁 Helicopter camera state (replay only)
+	bool bInReplay = false;         //  set each frame by game when replay is active
+	Ogre::Vector3 mHeliPos{0,0,0};  //  smoothed world-space camera position
 
 
 	//  🎥🎥 Cameras, Views  --------
