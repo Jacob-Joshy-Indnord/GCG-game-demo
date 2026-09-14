@@ -243,6 +243,16 @@ void GraphicsSystem::initialize( const String &windowTitle )
 		mRoot->setRenderSystem( renderSystem );
 	}
 #endif
+	//  macOS desktop: Apple has deprecated OpenGL; use Metal as the only supported backend.
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+	if(!mRoot->getRenderSystem())
+	{
+		RenderSystem *renderSystem =
+				mRoot->getRenderSystemByName( "Metal Rendering Subsystem" );
+		if( renderSystem )
+			mRoot->setRenderSystem( renderSystem );
+	}
+#endif
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
 	if( !mRoot->getRenderSystem() )
 	{

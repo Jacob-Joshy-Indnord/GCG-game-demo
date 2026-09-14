@@ -35,7 +35,8 @@ class StuntRally3(ConanFile):
             self.requires("tinyxml2/9.0.0")
             self.requires("rapidjson/cci.20230929", force=True)
 
-            self.requires("libalsa/1.2.10", override=True)
+            if self.settings.os == "Linux":
+                self.requires("libalsa/1.2.10", override=True)
             self.requires("libpng/1.6.40", override=True)
             self.requires("libwebp/1.3.2", override=True)
             self.requires("zlib/1.3", override=True)
