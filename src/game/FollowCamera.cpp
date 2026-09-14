@@ -136,7 +136,48 @@ void FollowCamera::update(Real time, const PosInfo& posIn, PosInfo* posOut, COLL
 		posOut->camRot = camRotFinal;
 		return;
 	}
-	
+
+	///  🚁 5 Helicopter - elevated overhead replay camera, smooth path-following
+	if (ca.mType == CAM_Helicopter)
+	{
+		//  parameters: mDist = height above car, mSpeed = smoothing speed, mOffset.z = trail dist back
+		const float heliH  = ca.mDist;       // default 18: height above car
+		const float trailD = -ca.mOffset.z;  // default 10: horizontal distance trailing behind car
+		const float smooth = ca.mSpeed;       // default 3: exponential smoothing speed
+
+		//  car yaw direction (world-up only)
+		Quaternion carOrient = orientGoal * qOrRot;
+		Quaternion carYaw;  carYaw.FromAngleAxis(carOrient.getYaw(), Vector3::UNIT_Y);
+		Vector3 carFwd = carYaw * Vector3::UNIT_Z;  // forward in world XZ
+
+		//  goal position: above and behind car
+		Vector3 goalHeliPos = posGoal - carFwd * trailD + Vector3(0.f, heliH, 0.f);
+
+		//  smooth position (Task 2: interpolate across frames, no snapping)
+		if (first)
+			mHeliPos = goalHeliPos;
+		else
+		{	float t = std::min(1.f, smooth * time);
+			mHeliPos += (goalHeliPos - mHeliPos) * t;
+		}
+		camPosFinal = mHeliPos;
+
+		//  orientation: look at the car from smoothed position above
+		Vector3 lookAt = posGoal + Vector3(0.f, 1.f, 0.f);
+		Vector3 zdir = camPosFinal - lookAt;
+		if (zdir.squaredLength() < 1e-6f)  zdir = Vector3::UNIT_Y;
+		zdir.normalise();
+		Vector3 xVec = Vector3::UNIT_Y.crossProduct(zdir);
+		if (xVec.squaredLength() < 1e-6f)  xVec = Vector3::UNIT_X;
+		xVec.normalise();
+		Vector3 yVec = zdir.crossProduct(xVec);  yVec.normalise();
+		camRotFinal.FromAxes(xVec, yVec, zdir);
+
+		posOut->camPos = camPosFinal;
+		posOut->camRot = camRotFinal;
+		return;
+	}
+
 	if (ca.mType == CAM_Follow)  ofs = ca.mOffset;
 	
 	Vector3 pos     = camPosFinal - ofs;
@@ -443,6 +484,8 @@ bool FollowCamera::updInfo(Real time)
 		,ca.mOffset.x, ca.mOffset.y, ca.mOffset.z, ca.mSpeed);	break;
 	case CAM_Car:    sprintf(ss, sFmt_Car.c_str()
 		,ca.mType, CAM_Str[ca.mType], ca.mOffset.z, ca.mOffset.x, ca.mOffset.y);	break;
+	case CAM_Helicopter: sprintf(ss, sFmt_Helicopter.c_str()
+		,ca.mType, CAM_Str[ca.mType], ca.mDist, ca.mOffset.z, ca.mSpeed);	break;
 	default:  break;
 	}
 	return true;
@@ -493,14 +536,20 @@ void FollowCamera::Next(bool bPrev, bool bMainOnly)
 	int dir = bPrev ? -1 : 1;
 	if (!bMainOnly)  // all
 	{
-		incCur(dir);  updView();  return;
+		//  cycle, skipping Helicopter when not in replay
+		int cnt = 0;
+		do {
+			incCur(dir);  ++cnt;
+		} while (cnt < miCount &&
+			!bInReplay && mViews[miCurrent].mType == CAM_Helicopter);
+		updView();  return;
 	}else
 	{	int cnt = 0, old = miCurrent;
 		while (cnt < miCount)
 		{
 			cnt++;  incCur(dir);
 			CameraView& c = mViews[miCurrent];
-			if (c.mMain > 0)
+			if (c.mMain > 0 && (bInReplay || c.mType != CAM_Helicopter))
 			{	updView();  return;  }
 		}
 		miCurrent = old;
@@ -592,6 +641,17 @@ bool FollowCamera::loadCameras()
 		miCount++;
 	}
 
+	//  🚁 append Helicopter camera (replay-only, always last in list)
+	{	CameraView hc;
+		hc.mName = "Helicopter";
+		hc.mType = CAM_Helicopter;
+		hc.mDist  = 18.f;    // height above car
+		hc.mSpeed = 3.f;     // smoothing speed (lower = smoother lag)
+		hc.mOffset = Vector3(0.f, 0.f, -10.f);  // z<0 → trail distance behind car
+		hc.mMain  = 0;       // included in all-cycling, not main-only
+		mViews.push_back(hc);  ++miCount;
+	}
+
 	updView();  updFmtTxt();
 	return true;
 }
@@ -633,4 +693,7 @@ void FollowCamera::updFmtTxt()
 	sFmt_Car =
 		sType+": %d %s  "+sOffset+": %4.2f %4.2f  "+sHeight+": %4.2f\n"+
 		sLEFT+": "+sHeight+" | "+sRIGHT+": "+sOffset+" | "+sMiddle+": "+sreset+" "+sOffset+"X";
+	sFmt_Helicopter =
+		sType+": %d %s  "+sHeight+":%5.1f  Trail:%5.1f  "+sSpeed+": %2.0f\n"+
+		"Helicopter - replay only, smooth elevated overhead";
 }
